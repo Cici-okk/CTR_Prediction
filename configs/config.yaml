@@ -1,0 +1,29 @@
+data:
+  raw_path: data/raw/train.csv
+  processed_dir: data/processed
+  label_col: label
+  # Update these to match the actual dataset's column names
+  numeric_cols: []
+  categorical_cols: []
+  val_size: 0.1
+  test_size: 0.1
+  random_seed: 42
+
+sampling:
+  # Strategy for handling extreme class imbalance (~1:1000): none | undersample | class_weight
+  strategy: class_weight
+  undersample_neg_ratio: 10   # target negative:positive ratio when strategy=undersample
+
+loss:
+  type: focal   # bce | focal
+  focal_gamma: 2.0
+  focal_alpha: 0.25
+
+train:
+  batch_size: 1024
+  num_epochs: 20
+  lr: 1e-3
+  weight_decay: 1e-5
+  optimizer: adamw   # adam | adamw
+  early_stopping_patience: 3
+  warmup_steps: 500
