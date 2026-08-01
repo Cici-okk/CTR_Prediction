@@ -6,11 +6,14 @@ __pycache__/
 venv/
 .ipynb_checkpoints/
 
-# Data (raw datasets are usually too large / private for git)
+# Raw data: too large for git, and redistributing Kaggle competition data is against its terms
 data/raw/*
 !data/raw/.gitkeep
-data/processed/*
-!data/processed/.gitkeep
+
+# Processed data IS tracked: it's small (~200k row sample) and needs to be shared so all
+# teammates get the exact same label-encoding / vocab sizes (see meta.json). Do not regenerate
+# it with a different --nrows without re-syncing with the team, or vocab_sizes will mismatch.
+data/processed/_train_undersampled.parquet   # runtime cache from strategy=undersample, regenerated on the fly
 
 # Model checkpoints & logs
 checkpoints/

@@ -64,14 +64,21 @@ def main():
     parser.add_argument("--raw_path", type=str, required=True)
     parser.add_argument("--out_dir", type=str, required=True)
     parser.add_argument("--config", type=str, default="configs/config.yaml")
+    parser.add_argument(
+        "--nrows", type=int, default=None,
+        help="Only read the first N rows (for fast local iteration on large files like Avazu's 40M-row train set)",
+    )
     args = parser.parse_args()
 
     cfg = load_config(args.config)["data"]
     label_col = cfg["label_col"]
+    drop_cols = cfg.get("drop_cols", [])
     numeric_cols = cfg["numeric_cols"]
     categorical_cols = cfg["categorical_cols"]
 
-    df = pd.read_csv(args.raw_path)
+    # pandas infers compression (e.g. .gz) from the file extension automatically
+    df = pd.read_csv(args.raw_path, nrows=args.nrows)
+    df = df.drop(columns=[c for c in drop_cols if c in df.columns])
 
     if not numeric_cols and not categorical_cols:
         # Auto-infer column roles by dtype when not explicitly set in the config (excluding the label column)

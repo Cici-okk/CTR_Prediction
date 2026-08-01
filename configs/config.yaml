@@ -1,10 +1,35 @@
 data:
-  raw_path: data/raw/train.csv
+  # Avazu CTR Prediction (Kaggle) train file, downloaded via kagglehub
+  raw_path: data/raw/train.gz
   processed_dir: data/processed
-  label_col: label
-  # Update these to match the actual dataset's column names
+  label_col: click
+  drop_cols: [id]   # unique row identifier, not a feature
+  # Avazu has no continuous numeric features - C1/C14-C21/device_type/device_conn_type
+  # are integer-coded categories, not magnitudes, so they go through categorical_cols.
   numeric_cols: []
-  categorical_cols: []
+  categorical_cols:
+    - hour
+    - C1
+    - banner_pos
+    - site_id
+    - site_domain
+    - site_category
+    - app_id
+    - app_domain
+    - app_category
+    - device_id
+    - device_ip
+    - device_model
+    - device_type
+    - device_conn_type
+    - C14
+    - C15
+    - C16
+    - C17
+    - C18
+    - C19
+    - C20
+    - C21
   val_size: 0.1
   test_size: 0.1
   random_seed: 42
