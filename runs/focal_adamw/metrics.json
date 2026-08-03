@@ -1,0 +1,11 @@
+{
+  "best_epoch": 4,
+  "val_auc": 0.7623841650273749,
+  "val_logloss": 0.4803895056247711,
+  "test_auc": 0.7718100510574895,
+  "test_logloss": 0.4773463010787964,
+  "loss_type": "focal",
+  "optimizer": "adamw",
+  "dropout": 0.2,
+  "early_stopping_enabled": true
+}

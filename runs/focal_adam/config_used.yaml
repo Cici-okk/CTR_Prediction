@@ -1,0 +1,52 @@
+data:
+  categorical_cols:
+  - hour
+  - C1
+  - banner_pos
+  - site_id
+  - site_domain
+  - site_category
+  - app_id
+  - app_domain
+  - app_category
+  - device_id
+  - device_ip
+  - device_model
+  - device_type
+  - device_conn_type
+  - C14
+  - C15
+  - C16
+  - C17
+  - C18
+  - C19
+  - C20
+  - C21
+  drop_cols:
+  - id
+  label_col: click
+  numeric_cols: []
+  processed_dir: data/processed
+  random_seed: 42
+  raw_path: data/raw/train.gz
+  test_size: 0.1
+  val_size: 0.1
+loss:
+  focal_alpha: 0.25
+  focal_gamma: 2.0
+  type: focal
+model:
+  dropout: 0.2
+  embed_dim: 16
+sampling:
+  strategy: class_weight
+  undersample_neg_ratio: 10
+train:
+  batch_size: 1024
+  early_stopping_metric: auc
+  early_stopping_patience: 3
+  lr: 0.001
+  num_epochs: 20
+  optimizer: adam
+  warmup_steps: 500
+  weight_decay: 1.0e-05
