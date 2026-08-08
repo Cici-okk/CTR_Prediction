@@ -19,6 +19,7 @@ import yaml
 from src.data.dataset import build_dataloader
 from src.losses.focal_loss import FocalLoss
 from src.models.fm import FactorizationMachine
+from src.models.transformer import TransformerCTR
 from src.utils import EarlyStopping, compute_metrics, set_seed
 
 
@@ -31,9 +32,11 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, default="configs/config.yaml")
     parser.add_argument("--output_dir", type=str, default="runs/default")
+    parser.add_argument("--model_type", type=str, choices=["fm", "transformer"], default=None)
     parser.add_argument("--loss", type=str, choices=["bce", "focal"], default=None)
     parser.add_argument("--optimizer", type=str, choices=["adam", "adamw"], default=None)
     parser.add_argument("--dropout", type=float, default=None)
+    parser.add_argument("--embedding_weight_decay", type=float, default=None)
     parser.add_argument("--epochs", type=int, default=None)
     parser.add_argument("--no_early_stop", action="store_true")
     parser.add_argument("--device", type=str, default=None)
@@ -50,11 +53,45 @@ def resolve_device(device_arg: str) -> torch.device:
     return torch.device("cpu")
 
 
+def build_model(meta: dict, cfg: dict) -> nn.Module:
+    model_type = cfg["model"].get("type", "fm")
+    if model_type == "transformer":
+        transformer_kwargs = cfg["model"].get("transformer", {})
+        return TransformerCTR(
+            meta["vocab_sizes"], meta["categorical_cols"],
+            embed_dim=cfg["model"]["embed_dim"], dropout=cfg["model"]["dropout"],
+            **transformer_kwargs,
+        )
+    return FactorizationMachine(
+        meta["vocab_sizes"], meta["categorical_cols"],
+        embed_dim=cfg["model"]["embed_dim"], dropout=cfg["model"]["dropout"],
+    )
+
+
 def build_optimizer(model: nn.Module, cfg: dict) -> torch.optim.Optimizer:
-    kwargs = {"lr": float(cfg["train"]["lr"]), "weight_decay": float(cfg["train"]["weight_decay"])}
+    """Splits params into the shared field-embedding table vs everything else, so the
+    embedding table (dominated by high-cardinality, often near-unique-per-row fields like
+    device_ip) can be regularized independently of e.g. attention/FFN weights. Defaults to
+    the same weight_decay for both groups when `embedding_weight_decay` isn't set, which is
+    numerically identical to a single param group - existing configs are unaffected."""
+    lr = float(cfg["train"]["lr"])
+    weight_decay = float(cfg["train"]["weight_decay"])
+    embedding_weight_decay = float(cfg["train"].get("embedding_weight_decay", weight_decay))
+
+    embedding_params, other_params = [], []
+    for name, param in model.named_parameters():
+        if name.startswith("embedding."):
+            embedding_params.append(param)
+        else:
+            other_params.append(param)
+    param_groups = [
+        {"params": embedding_params, "weight_decay": embedding_weight_decay},
+        {"params": other_params, "weight_decay": weight_decay},
+    ]
+
     if cfg["train"]["optimizer"] == "adam":
-        return torch.optim.Adam(model.parameters(), **kwargs)
-    return torch.optim.AdamW(model.parameters(), **kwargs)
+        return torch.optim.Adam(param_groups, lr=lr)
+    return torch.optim.AdamW(param_groups, lr=lr)
 
 
 def build_criterion(cfg: dict) -> nn.Module:
@@ -118,12 +155,16 @@ def main():
     args = parse_args()
     cfg = load_config(args.config)
 
+    if args.model_type is not None:
+        cfg["model"]["type"] = args.model_type
     if args.loss is not None:
         cfg["loss"]["type"] = args.loss
     if args.optimizer is not None:
         cfg["train"]["optimizer"] = args.optimizer
     if args.dropout is not None:
         cfg["model"]["dropout"] = args.dropout
+    if args.embedding_weight_decay is not None:
+        cfg["train"]["embedding_weight_decay"] = args.embedding_weight_decay
     if args.epochs is not None:
         cfg["train"]["num_epochs"] = args.epochs
 
@@ -154,10 +195,7 @@ def main():
     val_loader = build_dataloader(processed_dir, "val", batch_size, strategy="none", shuffle=False)
     test_loader = build_dataloader(processed_dir, "test", batch_size, strategy="none", shuffle=False)
 
-    model = FactorizationMachine(
-        meta["vocab_sizes"], meta["categorical_cols"],
-        embed_dim=cfg["model"]["embed_dim"], dropout=cfg["model"]["dropout"],
-    ).to(device)
+    model = build_model(meta, cfg).to(device)
 
     criterion = build_criterion(cfg)
     optimizer = build_optimizer(model, cfg)
